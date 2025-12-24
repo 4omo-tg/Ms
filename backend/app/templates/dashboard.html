@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Admin Dashboard</h1>
+<p>Welcome, <span id="userEmail"></span></p>
+<nav>
+    <a href="/admin/pois"><button>Manage Points of Interest</button></a>
+    <a href="/admin/routes"><button>Manage Routes</button></a>
+    <button onclick="logout()" style="background: #dc3545">Logout</button>
+</nav>
+
+<script>
+    (async () => {
+        const res = await api('/api/v1/users/me');
+        if (res.ok) {
+            const user = await res.json();
+            document.getElementById('userEmail').innerText = user.email;
+        }
+    })();
+
+    function logout() {
+        localStorage.removeItem('token');
+        window.location.href = '/admin/login';
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moscow Chrono Admin</title>
+    <style>
+        body { font-family: sans-serif; background: #f4f4f4; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #333; }
+        label { display: block; margin-top: 10px; }
+        input, textarea, button { width: 100%; padding: 10px; margin-top: 5px; box-sizing: border-box; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; margin-top: 20px; }
+        button:hover { background: #0056b3; }
+        .hidden { display: none; }
+        .error { color: red; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+    <script>
+        // Auth Helper
+        const token = localStorage.getItem('token');
+        function checkAuth() {
+            if (!token && window.location.pathname !== '/admin/login') {
+                window.location.href = '/admin/login';
+            }
+        }
+        if (window.location.pathname !== '/admin/login') checkAuth();
+
+        async function api(url, options = {}) {
+            if (!options.headers) options.headers = {};
+            if (token) options.headers['Authorization'] = 'Bearer ' + token;
+            
+            const res = await fetch(url, options);
+            if (res.status === 401) {
+                localStorage.removeItem('token');
+                window.location.href = '/admin/login';
+            }
+            return res;
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block content %}
+<a href="/admin/pois">&larr; Back to List</a>
+<h1 id="header">Create POI</h1>
+<form id="poiForm">
+    <label>Title</label>
+    <input type="text" id="title" required>
+
+    <label>Description</label>
+    <textarea id="description" rows="5"></textarea>
+
+    <label>Latitude</label>
+    <input type="number" step="any" id="latitude" required>
+
+    <label>Longitude</label>
+    <input type="number" step="any" id="longitude" required>
+
+    <label>Historic Image (Upload)</label>
+    <input type="file" id="histFile" accept="image/*">
+    <input type="text" id="historic_image_url" placeholder="or Enter URL" style="margin-top:5px">
+    <div id="histPreview"></div>
+
+    <label>Modern Image (Upload)</label>
+    <input type="file" id="modFile" accept="image/*">
+    <input type="text" id="modern_image_url" placeholder="or Enter URL" style="margin-top:5px">
+    <div id="modPreview"></div>
+
+    <button type="submit">Save</button>
+</form>
+
+<script>
+    const id = window.location.pathname.split('/').pop();
+    const isEdit = !isNaN(id);
+    if (isEdit) {
+        document.getElementById('header').innerText = 'Edit POI ' + id;
+        load();
+    }
+
+    async function handleUpload(fileInputId, urlInputId, previewId) {
+        const fileInput = document.getElementById(fileInputId);
+        fileInput.addEventListener('change', async () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+            const fd = new FormData();
+            fd.append('file', file);
+
+            const res = await api('/api/v1/files/upload', { method: 'POST', body: fd });
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById(urlInputId).value = data.url;
+                renderPreview(previewId, data.url);
+            } else {
+                alert('Upload failed');
+            }
+        });
+    }
+
+    function renderPreview(divId, url) {
+        const div = document.getElementById(divId);
+        if (url) div.innerHTML = `<img src="${url}" style="max-height: 100px; margin-top: 5px;">`;
+    }
+
+    handleUpload('histFile', 'historic_image_url', 'histPreview');
+    handleUpload('modFile', 'modern_image_url', 'modPreview');
+
+    async function load() {
+        const res = await api('/api/v1/pois/' + id);
+        if (res.ok) {
+            const data = await res.json();
+            document.getElementById('title').value = data.title;
+            document.getElementById('description').value = data.description;
+            document.getElementById('latitude').value = data.latitude;
+            document.getElementById('longitude').value = data.longitude;
+            document.getElementById('historic_image_url').value = data.historic_image_url;
+            document.getElementById('modern_image_url').value = data.modern_image_url;
+            renderPreview('histPreview', data.historic_image_url);
+            renderPreview('modPreview', data.modern_image_url);
+        }
+    }
+
+    document.getElementById('poiForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const payload = {
+            title: document.getElementById('title').value,
+            description: document.getElementById('description').value,
+            latitude: parseFloat(document.getElementById('latitude').value),
+            longitude: parseFloat(document.getElementById('longitude').value),
+            historic_image_url: document.getElementById('historic_image_url').value,
+            modern_image_url: document.getElementById('modern_image_url').value,
+        };
+
+        let res;
+        if (isEdit) {
+            res = await api('/api/v1/pois/' + id, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        } else {
+            res = await api('/api/v1/pois/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        }
+
+        if (res.ok) window.location.href = '/admin/pois';
+        else alert('Error saving');
+    };
+</script>
+{% endblock %}

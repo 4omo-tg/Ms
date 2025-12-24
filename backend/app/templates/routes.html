@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<a href="/admin/">&larr; Back to Dashboard</a>
+<h1>Routes</h1>
+<a href="/admin/routes/new"><button style="width: auto; background: #28a745;">+ Create New Route</button></a>
+
+<table id="routeTable">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Title</th>
+            <th>Difficulty</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<script>
+    async function load() {
+        const res = await api('/api/v1/routes/');
+        const routes = await res.json();
+        const tbody = document.querySelector('#routeTable tbody');
+        tbody.innerHTML = '';
+        routes.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${r.id}</td>
+                <td>${r.title}</td>
+                <td>${r.difficulty}</td>
+                <td>
+                    <button onclick="del(${r.id})" style="width:auto; padding: 5px; background: #dc3545">Delete</button>
+                    <a href="/admin/routes/${r.id}"><button style="width:auto; padding: 5px;">Edit</button></a>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    async function del(id) {
+        if (!confirm('Are you sure?')) return;
+        const res = await api('/api/v1/routes/' + id, { method: 'DELETE' });
+        if (res.ok) load();
+        else alert('Failed to delete');
+    }
+
+    load();
+</script>
+{% endblock %}

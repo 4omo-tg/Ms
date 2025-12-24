@@ -17,6 +17,9 @@ if not os.path.exists("app/uploads"):
 
 app.mount("/static", StaticFiles(directory="app/uploads"), name="static")
 
+from app.web import admin
+app.include_router(admin.router, prefix="/admin", tags=["admin"])
+
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 

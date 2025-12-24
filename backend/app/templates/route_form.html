@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block content %}
+<a href="/admin/routes">&larr; Back to List</a>
+<h1 id="header">Create Route</h1>
+<form id="routeForm">
+    <label>Title</label>
+    <input type="text" id="title" required>
+
+    <label>Description</label>
+    <textarea id="description" rows="3"></textarea>
+
+    <label>Difficulty</label>
+    <select id="difficulty">
+        <option value="easy">Easy</option>
+        <option value="medium">Medium</option>
+        <option value="hard">Hard</option>
+    </select>
+
+    <label>Reward XP</label>
+    <input type="number" id="reward_xp" value="100">
+
+    <label>Premium Route?</label>
+    <input type="checkbox" id="is_premium" style="width: auto;">
+
+    <!-- POI Selection -->
+    <label style="margin-top:20px;">Points of Interest (Check to include)</label>
+    <div id="poiList" style="max-height: 300px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px;"></div>
+
+    <button type="submit">Save</button>
+</form>
+
+<script>
+    const id = window.location.pathname.split('/').pop();
+    const isEdit = !isNaN(id);
+    if (isEdit) {
+        document.getElementById('header').innerText = 'Edit Route ' + id;
+    }
+
+    async function loadPOIs(selectedIds = []) {
+        const res = await api('/api/v1/pois/');
+        const pois = await res.json();
+        const container = document.getElementById('poiList');
+        container.innerHTML = '';
+
+        pois.forEach(poi => {
+            const div = document.createElement('div');
+            const checked = selectedIds.includes(poi.id) ? 'checked' : '';
+            div.innerHTML = `
+                <input type="checkbox" value="${poi.id}" class="poi-check" style="width:auto; margin-right: 5px;" ${checked}>
+                <span>${poi.title} (ID: ${poi.id})</span>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    async function load() {
+        if (isEdit) {
+            const res = await api('/api/v1/routes/' + id);
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById('title').value = data.title;
+                document.getElementById('description').value = data.description;
+                document.getElementById('difficulty').value = data.difficulty;
+                document.getElementById('reward_xp').value = data.reward_xp;
+                document.getElementById('is_premium').checked = data.is_premium;
+
+                // Extract POI IDs from response
+                const selectedIds = data.points.map(p => p.id);
+                await loadPOIs(selectedIds);
+            }
+        } else {
+            await loadPOIs();
+        }
+    }
+    load();
+
+    document.getElementById('routeForm').onsubmit = async (e) => {
+        e.preventDefault();
+
+        // Get selected POIs
+        const checkedBoxes = document.querySelectorAll('.poi-check:checked');
+        const poiIds = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
+
+        const payload = {
+            title: document.getElementById('title').value,
+            description: document.getElementById('description').value,
+            difficulty: document.getElementById('difficulty').value,
+            reward_xp: parseFloat(document.getElementById('reward_xp').value),
+            is_premium: document.getElementById('is_premium').checked,
+            poi_ids: poiIds
+        };
+
+        let res;
+        if (isEdit) {
+            res = await api('/api/v1/routes/' + id, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        } else {
+            res = await api('/api/v1/routes/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        }
+
+        if (res.ok) window.location.href = '/admin/routes';
+        else alert('Error saving');
+    };
+</script>
+{% endblock %}

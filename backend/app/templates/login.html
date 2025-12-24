@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Admin Login</h2>
+<p id="msg" class="error"></p>
+<form id="loginForm">
+    <label>Email</label>
+    <input type="email" id="username" required value="admin@example.com">
+    <label>Password</label>
+    <input type="password" id="password" required value="changethis">
+    <button type="submit">Login</button>
+</form>
+
+<script>
+    document.getElementById('loginForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const formData = new FormData();
+        formData.append('username', document.getElementById('username').value);
+        formData.append('password', document.getElementById('password').value);
+
+        try {
+            const res = await fetch('/api/v1/login/access-token', {
+                method: 'POST',
+                body: formData
+            });
+            if (res.ok) {
+                const data = await res.json();
+                localStorage.setItem('token', data.access_token);
+                window.location.href = '/admin/';
+            } else {
+                document.getElementById('msg').innerText = 'Login failed';
+            }
+        } catch (err) {
+            document.getElementById('msg').innerText = 'Error: ' + err;
+        }
+    };
+</script>
+{% endblock %}

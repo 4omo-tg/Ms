@@ -3,7 +3,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import models, schemas
@@ -21,10 +21,14 @@ async def login_access_token(
     """
     OAuth2 compatible token login, get an access token for future requests.
     """
-    # Find user by username (or email if we want to support both)
-    # Assuming username field in DB is unique
+    # Find user by username
     result = await db.execute(select(models.User).where(models.User.username == form_data.username))
     user = result.scalars().first()
+    
+    # If not found, try email
+    if not user:
+        result = await db.execute(select(models.User).where(models.User.email == form_data.username))
+        user = result.scalars().first()
 
     if not user or not security.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Incorrect email or password")

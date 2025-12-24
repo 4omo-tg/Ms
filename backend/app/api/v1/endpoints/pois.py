@@ -11,60 +11,25 @@ from app.api import deps
 
 router = APIRouter()
 
-@router.get("/", response_model=List[schemas.PointOfInterest])
-async def read_pois(
-    db: AsyncSession = Depends(deps.get_db),
-    skip: int = 0,
-    limit: int = 100,
-    latitude: float | None = None,
-    longitude: float | None = None,
-    radius: float | None = 500, # meters
-) -> Any:
-    """
-    Retrieve POIs. Filter by nearby if lat/lon/radius provided.
-    """
-    query = select(models.PointOfInterest)
+@router.get("/")
+async def read_pois(db: AsyncSession = Depends(deps.get_db)) -> Any:
+    # Fallback to RAW SQL to avoid ORM/GeoAlchemy crashes in this environment
+    from sqlalchemy import text
+    result = await db.execute(text("SELECT id, title, description, historic_image_url, modern_image_url, ST_X(location::geometry) as lon, ST_Y(location::geometry) as lat FROM point_of_interest"))
+    rows = result.all()
     
-    if latitude is not None and longitude is not None:
-        # Create a point from input
-        pt = f'POINT({longitude} {latitude})'
-        # Filter by distance (in meters, assuming SRID 4326 and cast to geography for meters or use correct projection)
-        # GeoAlchemy2's ST_DWithin with use_spheroid=True (default for geography) works on geography types.
-        # But our column is Geometry(POINT, 4326). ST_DWithin on Geometry uses units of the CRS (degrees for 4326).
-        # We should cast to geography for meter-based distance or use ST_DistanceSphere (PostGIS < 2.2) / ST_Distance(geography).
-        # Better: ST_DWithin(geography(location), geography(ST_GeomFromText(...)), radius_meters)
-        
-        # Casting geometry to geography for metric distance
-        from sqlalchemy import func
-        # Note: We need to ensure we import func.
-        
-        query = query.where(
-            func.ST_DWithin(
-                func.Geography(models.PointOfInterest.location),
-                func.Geography(func.ST_GeomFromText(pt, 4326)),
-                radius
-            )
-        )
-    
-    result = await db.execute(query.offset(skip).limit(limit))
-    pois = result.scalars().all()
-    
-    # helper to convert geometry to lat/lon for schema
-    poi_schemas = []
-    for poi in pois:
-        point = to_shape(poi.location)
-        poi_schemas.append(
-            schemas.PointOfInterest(
-                id=poi.id,
-                title=poi.title,
-                description=poi.description,
-                historic_image_url=poi.historic_image_url,
-                modern_image_url=poi.modern_image_url,
-                latitude=point.y,
-                longitude=point.x
-            )
-        )
-    return poi_schemas
+    poi_list = []
+    for row in rows:
+        poi_list.append({
+            "id": row.id,
+            "title": row.title,
+            "description": row.description,
+            "historic_image_url": row.historic_image_url,
+            "modern_image_url": row.modern_image_url,
+            "latitude": row.lat,
+            "longitude": row.lon
+        })
+    return poi_list
 
 @router.post("/", response_model=schemas.PointOfInterest)
 async def create_poi(
